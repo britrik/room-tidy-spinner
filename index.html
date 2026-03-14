@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🎯 Room Tidy Spinner!</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #ff6b35;
+      background: linear-gradient(160deg, #ff8c00 0%, #ffd700 40%, #ff6b35 100%);
+      background-attachment: fixed;
+      font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 12px 30px;
+      overflow-x: hidden;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    .header h1 {
+      font-size: clamp(1.6rem, 6vw, 2.8rem);
+      color: white;
+      text-shadow: 3px 3px 0 #b30000, -1px -1px 0 #b30000, 1px -1px 0 #b30000, -1px 1px 0 #b30000;
+      letter-spacing: 2px;
+      line-height: 1.1;
+    }
+
+    .header .prize {
+      display: inline-block;
+      background: white;
+      color: #c0392b;
+      font-size: clamp(0.8rem, 2.5vw, 1.1rem);
+      font-weight: bold;
+      padding: 4px 16px;
+      border-radius: 20px;
+      margin-top: 6px;
+      border: 3px solid #c0392b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .prize span { color: #27ae60; }
+
+    .spinner-wrapper {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    #wheelCanvas {
+      display: block;
+      filter: drop-shadow(0 6px 18px rgba(0,0,0,0.45));
+      touch-action: none;
+    }
+
+    /* Spin button */
+    .spin-btn {
+      font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+      font-size: clamp(1.4rem, 4.5vw, 2.2rem);
+      font-weight: bold;
+      background: linear-gradient(160deg, #e74c3c, #c0392b);
+      color: white;
+      border: 5px solid #7b0000;
+      border-radius: 60px;
+      padding: 14px 52px;
+      cursor: pointer;
+      text-shadow: 2px 2px 0 #7b0000;
+      box-shadow: 0 8px 0 #7b0000, 0 12px 24px rgba(0,0,0,0.35);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      letter-spacing: 2px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+    }
+
+    .spin-btn:hover { filter: brightness(1.08); }
+
+    .spin-btn:active, .spin-btn.pressed {
+      transform: translateY(5px);
+      box-shadow: 0 3px 0 #7b0000, 0 5px 10px rgba(0,0,0,0.25);
+    }
+
+    .spin-btn:disabled {
+      background: linear-gradient(160deg, #888, #666);
+      border-color: #444;
+      box-shadow: 0 8px 0 #444, 0 12px 20px rgba(0,0,0,0.25);
+      cursor: default;
+      filter: none;
+    }
+
+    /* Task card */
+    .task-card {
+      background: white;
+      border-radius: 24px;
+      padding: 18px 24px 22px;
+      margin-top: 18px;
+      text-align: center;
+      box-shadow: 0 8px 0 rgba(0,0,0,0.18), 0 16px 32px rgba(0,0,0,0.22);
+      border: 5px solid #ffd700;
+      max-width: 480px;
+      width: 92%;
+      opacity: 0;
+      transform: scale(0.5) translateY(30px);
+      transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+
+    .task-card.show {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+
+    .task-label {
+      font-size: clamp(0.75rem, 2.2vw, 0.95rem);
+      color: #777;
+      font-weight: bold;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .task-emoji-big {
+      font-size: clamp(3rem, 10vw, 4.5rem);
+      line-height: 1;
+      margin-bottom: 8px;
+      display: block;
+      animation: bouncePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes bouncePop {
+      0%   { transform: scale(0) rotate(-15deg); }
+      60%  { transform: scale(1.25) rotate(8deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    .task-text {
+      font-size: clamp(1.1rem, 3.5vw, 1.7rem);
+      font-weight: bold;
+      line-height: 1.3;
+      color: #2c3e50;
+    }
+
+    .task-go {
+      margin-top: 10px;
+      font-size: clamp(0.85rem, 2.5vw, 1.1rem);
+      color: white;
+      background: #27ae60;
+      display: inline-block;
+      padding: 6px 20px;
+      border-radius: 20px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      animation: pulse 1s ease infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to   { transform: scale(1.06); }
+    }
+
+    /* Booby prize card styling */
+    .task-card.booby { border-color: #7b0000; }
+    .task-card.booby .task-go { background: #c0392b; }
+
+    /* Confetti */
+    #confettiLayer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      overflow: hidden;
+    }
+
+    .cp {
+      position: absolute;
+      top: -20px;
+      border-radius: 3px;
+      animation: fall linear forwards;
+    }
+
+    @keyframes fall {
+      to { transform: translateY(110vh) rotate(900deg); opacity: 0; }
+    }
+
+    /* Zap labels */
+    .zap {
+      position: fixed;
+      font-size: clamp(1.5rem, 5vw, 2.5rem);
+      font-weight: bold;
+      color: #fff700;
+      text-shadow: 3px 3px 0 #c0392b;
+      pointer-events: none;
+      z-index: 1000;
+      animation: zapAnim 0.7s ease forwards;
+    }
+
+    @keyframes zapAnim {
+      0%   { transform: scale(0) rotate(-20deg); opacity: 1; }
+      60%  { transform: scale(1.4) rotate(10deg); opacity: 1; }
+      80%  { transform: scale(1.1) rotate(-5deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎯 ROOM TIDY SPINNER!</h1>
+  <p class="prize">WIN: <span>A Tidy Room &amp; A Happy Dad!</span> 🏆</p>
+</div>
+
+<div class="spinner-wrapper">
+  <canvas id="wheelCanvas"></canvas>
+</div>
+
+<button class="spin-btn" id="spinBtn">🎰 SPIN!</button>
+
+<div class="task-card" id="taskCard">
+  <p class="task-label">⭐ Your Task Is... ⭐</p>
+  <span class="task-emoji-big" id="taskEmoji"></span>
+  <p class="task-text" id="taskText"></p>
+  <span class="task-go" id="taskGo">GO GO GO! 🚀</span>
+</div>
+
+<div id="confettiLayer"></div>
+
+<script>
+// ─── Tasks ───────────────────────────────────────────────────────────────────
+const TASKS = [
+  { text: "Pick up clothes & put them away or in the laundry basket!",
+    emoji: "👕", color: "#3a86d4", dark: "#1a5fa8" },
+  { text: "Pick up rubbish & put it in the bin!",
+    emoji: "🗑️", color: "#27ae60", dark: "#1a7a43" },
+  { text: "Put your books on the shelf!",
+    emoji: "📚", color: "#c0392b", dark: "#8b0000" },
+  { text: "Tidy your pens, brushes, toothbrush & hair stuff!",
+    emoji: "🪥", color: "#e67e22", dark: "#a04000" },
+  { text: "Pick up your toys & put them away!",
+    emoji: "🧸", color: "#16a085", dark: "#0a6b58" },
+  { text: "Make your bed!",
+    emoji: "🛏️", color: "#8e44ad", dark: "#5b1f7a" },
+];
+
+const N     = TASKS.length;
+const SLICE = (2 * Math.PI) / N;
+
+// ─── Canvas Setup ────────────────────────────────────────────────────────────
+const canvas = document.getElementById('wheelCanvas');
+const ctx    = canvas.getContext('2d');
+
+function resize() {
+  const size = Math.min(window.innerWidth - 24, 460);
+  canvas.width  = size;
+  canvas.height = size;
+  drawWheel(currentRot);
+}
+
+window.addEventListener('resize', resize);
+
+// ─── Drawing ─────────────────────────────────────────────────────────────────
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawWheel(rot) {
+  const W  = canvas.width;
+  const cx = W / 2, cy = W / 2;
+  const R  = cx - 14;      // wheel radius
+  const RI = R * 0.115;    // inner hub radius
+
+  ctx.clearRect(0, 0, W, W);
+
+  // ── Outer decorative ring ──────────────────────────────────────────────────
+  // Gold ring with small studs
+  const ringGrad = ctx.createRadialGradient(cx, cy, R, cx, cy, R + 13);
+  ringGrad.addColorStop(0,   '#ffe000');
+  ringGrad.addColorStop(0.5, '#ffd700');
+  ringGrad.addColorStop(1,   '#c8a400');
+  ctx.beginPath();
+  ctx.arc(cx, cy, R + 14, 0, Math.PI * 2);
+  ctx.fillStyle = ringGrad;
+  ctx.fill();
+
+  // Dark border
+  ctx.beginPath();
+  ctx.arc(cx, cy, R + 14, 0, Math.PI * 2);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#7b4f00';
+  ctx.stroke();
+
+  // Studs on gold ring
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    const sx = cx + (R + 8) * Math.cos(a);
+    const sy = cy + (R + 8) * Math.sin(a);
+    ctx.beginPath();
+    ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff0a0';
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#7b4f00';
+    ctx.stroke();
+  }
+
+  // ── Segments ───────────────────────────────────────────────────────────────
+  for (let i = 0; i < N; i++) {
+    const a0 = rot + i * SLICE - Math.PI / 2;
+    const a1 = rot + (i + 1) * SLICE - Math.PI / 2;
+    const am = rot + (i + 0.5) * SLICE - Math.PI / 2;   // mid-angle
+    const task = TASKS[i];
+
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, a0, a1);
+    ctx.closePath();
+
+    // Radial gradient: lighter at edge, darker at center
+    const gx0 = cx + R * 0.7 * Math.cos(am);
+    const gy0 = cy + R * 0.7 * Math.sin(am);
+    const segGrad = ctx.createRadialGradient(gx0, gy0, 0, cx, cy, R);
+    segGrad.addColorStop(0, lighten(task.color, 30));
+    segGrad.addColorStop(1, task.color);
+    ctx.fillStyle = segGrad;
+    ctx.fill();
+
+    // White divider lines
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, a0, a1);
+    ctx.closePath();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.stroke();
+
+    // ── Text inside segment ────────────────────────────────────────────────
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(am);
+
+    // After rotate: +x = outward radial, y = tangential
+    const textR    = R * 0.60;  // distance from center for text block
+    const fontSize = Math.max(9, Math.floor(R * 0.066));
+    const lineH    = fontSize * 1.3;
+    const maxW     = R * 0.52;
+
+    ctx.font = `bold ${fontSize}px Comic Sans MS, Chalkboard SE, cursive`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+
+    const label = task.text.replace(/!$/, '');
+    const lines  = wrapText(ctx, label, maxW);
+
+    // Emoji size
+    const eSize = Math.max(14, Math.floor(R * 0.125));
+    const totalH = eSize + 3 + lines.length * lineH;
+    let yOff = -totalH / 2 + eSize / 2;
+
+    // Emoji
+    ctx.font = `${eSize}px serif`;
+    ctx.shadowColor   = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur    = 3;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.fillText(task.emoji, textR, yOff);
+    yOff += eSize / 2 + 4;
+
+    // Text lines
+    ctx.font          = `bold ${fontSize}px Comic Sans MS, Chalkboard SE, cursive`;
+    ctx.fillStyle     = 'white';
+    ctx.shadowColor   = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur    = 3;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    for (const ln of lines) {
+      ctx.fillText(ln, textR, yOff + lineH / 2);
+      yOff += lineH;
+    }
+
+    ctx.restore();
+  }
+
+  // ── Hub (center circle) ────────────────────────────────────────────────────
+  const hubGrad = ctx.createRadialGradient(cx - RI * 0.3, cy - RI * 0.3, 0, cx, cy, RI);
+  hubGrad.addColorStop(0,   '#fff176');
+  hubGrad.addColorStop(0.6, '#ffd700');
+  hubGrad.addColorStop(1,   '#c8a400');
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, RI, 0, Math.PI * 2);
+  ctx.fillStyle = hubGrad;
+  ctx.fill();
+  ctx.lineWidth   = 3;
+  ctx.strokeStyle = '#7b4f00';
+  ctx.stroke();
+
+  // Refresh icon
+  ctx.font         = `${Math.floor(RI * 1.3)}px serif`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor  = 'transparent';
+  ctx.fillText('🔄', cx, cy + 1);
+
+  // ── Pointer (arrow at top) ─────────────────────────────────────────────────
+  const py = cy - R - 11;
+  ctx.beginPath();
+  ctx.moveTo(cx,      py + 6);
+  ctx.lineTo(cx - 13, py - 18);
+  ctx.lineTo(cx + 13, py - 18);
+  ctx.closePath();
+
+  const pGrad = ctx.createLinearGradient(cx - 13, py - 18, cx + 13, py + 6);
+  pGrad.addColorStop(0, '#ff4444');
+  pGrad.addColorStop(1, '#b30000');
+  ctx.fillStyle   = pGrad;
+  ctx.fill();
+  ctx.lineWidth   = 3;
+  ctx.strokeStyle = 'white';
+  ctx.stroke();
+
+  // pointer shadow/glow
+  ctx.beginPath();
+  ctx.moveTo(cx,      py + 6);
+  ctx.lineTo(cx - 13, py - 18);
+  ctx.lineTo(cx + 13, py - 18);
+  ctx.closePath();
+  ctx.lineWidth   = 1.5;
+  ctx.strokeStyle = '#7b0000';
+  ctx.stroke();
+}
+
+// ─── Colour helpers ───────────────────────────────────────────────────────────
+function lighten(hex, pct) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) + pct, g = ((n >> 8) & 0xff) + pct, b = (n & 0xff) + pct;
+  r = Math.min(255, r); g = Math.min(255, g); b = Math.min(255, b);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+// ─── Audio (Web Audio API) ────────────────────────────────────────────────────
+let audioCtx;
+
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playTick(freq = 440) {
+  try {
+    const ac  = getAudio();
+    const osc = ac.createOscillator();
+    const g   = ac.createGain();
+    osc.connect(g);
+    g.connect(ac.destination);
+    osc.type     = 'square';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.08, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.07);
+    osc.start();
+    osc.stop(ac.currentTime + 0.07);
+  } catch (e) {}
+}
+
+function playFanfare() {
+  try {
+    const ac   = getAudio();
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((freq, i) => {
+      const osc = ac.createOscillator();
+      const g   = ac.createGain();
+      osc.connect(g);
+      g.connect(ac.destination);
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const t = ac.currentTime + i * 0.13;
+      g.gain.setValueAtTime(0.18, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.start(t);
+      osc.stop(t + 0.26);
+    });
+  } catch (e) {}
+}
+
+// ─── Spin Logic ───────────────────────────────────────────────────────────────
+let currentRot   = 0;
+let spinning     = false;
+let startRot     = 0;
+let targetRot    = 0;
+let spinDuration = 0;
+let spinStart    = 0;
+let lastTickSeg  = -1;
+let rafId;
+
+function easeOut(t) {
+  return 1 - Math.pow(1 - t, 4);
+}
+
+function segAtTop(rot) {
+  const a = ((-Math.PI / 2 - rot) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+  return Math.floor(a / SLICE) % N;
+}
+
+function doSpin() {
+  if (spinning) return;
+  spinning = true;
+
+  // Hide card
+  taskCard.classList.remove('show');
+  spinBtn.disabled     = true;
+  spinBtn.textContent  = '🌀 SPINNING...';
+
+  // Pick landing segment
+  const landSeg  = Math.floor(Math.random() * N);
+  // Centre the pointer in the middle of that segment
+  const wantAngle = -(landSeg * SLICE + SLICE / 2 + Math.PI / 2);
+  const minSpins  = 5 + Math.random() * 3;
+
+  let tgt = wantAngle;
+  while (tgt < currentRot + minSpins * 2 * Math.PI) tgt += 2 * Math.PI;
+
+  startRot     = currentRot;
+  targetRot    = tgt;
+  spinDuration = 3200 + Math.random() * 1400;  // 3.2 – 4.6 s
+  spinStart    = 0;
+  lastTickSeg  = segAtTop(currentRot);
+
+  rafId = requestAnimationFrame(animateSpin);
+}
+
+function animateSpin(ts) {
+  if (!spinStart) spinStart = ts;
+  const elapsed = ts - spinStart;
+  const t       = Math.min(elapsed / spinDuration, 1);
+  const eased   = easeOut(t);
+
+  currentRot = startRot + (targetRot - startRot) * eased;
+  drawWheel(currentRot);
+
+  // Tick sound as each new segment crosses the pointer
+  const seg = segAtTop(currentRot);
+  if (seg !== lastTickSeg) {
+    const progress   = t;
+    const tickFreq   = 200 + progress * 600;   // higher pitch when slow
+    playTick(tickFreq);
+    lastTickSeg = seg;
+  }
+
+  if (t < 1) {
+    rafId = requestAnimationFrame(animateSpin);
+  } else {
+    currentRot = targetRot;
+    drawWheel(currentRot);
+    spinning = false;
+    onLanded(segAtTop(currentRot));
+  }
+}
+
+// ─── Result ───────────────────────────────────────────────────────────────────
+const taskCard  = document.getElementById('taskCard');
+const taskEmoji = document.getElementById('taskEmoji');
+const taskText  = document.getElementById('taskText');
+const taskGo    = document.getElementById('taskGo');
+const spinBtn   = document.getElementById('spinBtn');
+
+function onLanded(segIdx) {
+  const task = TASKS[segIdx];
+  taskCard.className = 'task-card';   // reset any old classes
+
+  taskEmoji.textContent = task.emoji;
+  taskText.textContent  = task.text;
+  taskCard.style.borderColor = task.color;
+  taskGo.style.background    = task.dark;
+  taskGo.textContent = '⭐ GO GO GO! 🚀';
+
+  playFanfare();
+
+  setTimeout(() => {
+    taskCard.classList.add('show');
+    spawnConfetti(task.color);
+    spawnZaps();
+  }, 150);
+
+  spinBtn.disabled    = false;
+  spinBtn.textContent = '🎰 SPIN AGAIN!';
+}
+
+// ─── Confetti ─────────────────────────────────────────────────────────────────
+const confettiLayer = document.getElementById('confettiLayer');
+const CONFETTI_COLS = ['#ff6b35','#ffd700','#27ae60','#3a86d4','#8e44ad','#e74c3c','#fff','#ff69b4','#00ced1'];
+
+function spawnConfetti(mainColor) {
+  const cols = [...CONFETTI_COLS, mainColor];
+  for (let i = 0; i < 90; i++) {
+    const el  = document.createElement('div');
+    el.className = 'cp';
+    const sz = 7 + Math.random() * 11;
+    el.style.width    = sz + 'px';
+    el.style.height   = sz + 'px';
+    el.style.left     = Math.random() * 100 + 'vw';
+    el.style.backgroundColor = cols[Math.floor(Math.random() * cols.length)];
+    el.style.borderRadius     = Math.random() > 0.5 ? '50%' : '3px';
+    el.style.animationDuration = (1.4 + Math.random() * 2.2) + 's';
+    el.style.animationDelay   = (Math.random() * 0.6) + 's';
+    confettiLayer.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
+// ─── Zap text labels ──────────────────────────────────────────────────────────
+const ZAPS = ['ZAP!','POW!','WOW!','GO!','YAY!','⭐','🎉','✨','BOOM!'];
+
+function spawnZaps() {
+  for (let i = 0; i < 4; i++) {
+    setTimeout(() => {
+      const el   = document.createElement('div');
+      el.className = 'zap';
+      el.textContent = ZAPS[Math.floor(Math.random() * ZAPS.length)];
+      el.style.left = (5 + Math.random() * 85) + 'vw';
+      el.style.top  = (10 + Math.random() * 70) + 'vh';
+      document.body.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }, i * 160);
+  }
+}
+
+// ─── Button ───────────────────────────────────────────────────────────────────
+spinBtn.addEventListener('click', doSpin);
+spinBtn.addEventListener('mousedown',  () => spinBtn.classList.add('pressed'));
+spinBtn.addEventListener('mouseup',    () => spinBtn.classList.remove('pressed'));
+spinBtn.addEventListener('touchstart', () => spinBtn.classList.add('pressed'), { passive: true });
+spinBtn.addEventListener('touchend',   () => spinBtn.classList.remove('pressed'), { passive: true });
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+resize();
+</script>
+</body>
+</html>
